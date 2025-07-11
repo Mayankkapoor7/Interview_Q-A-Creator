@@ -12,18 +12,13 @@ from langchain.chains.summarize import load_summarize_chain
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
-from docx import Document as WordDocument  # pip install python-docx
-
-# Load API key
+from docx import Document as WordDocument
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 
-# Prompt templates
 prompt_template = "Write possible interview questions from the following text:\n\n{text}\n\nQuestions:"
 refine_template = ("We have some existing interview questions: {existing_answer}\n\n"
                    "Based on the additional context below, refine and add more questions:\n\n{text}\n\nRefined Questions:")
-
-# PDF processing function
 def file_processing(file_path):
     loader = PyPDFLoader(file_path)
     data = loader.load()
@@ -45,8 +40,6 @@ def file_processing(file_path):
     document_answer_gen = splitter_ans_gen.split_documents(document_ques_gen)
 
     return document_ques_gen, document_answer_gen
-
-# LLM pipeline
 def llm_pipeline(file_path):
     document_ques_gen, document_answer_gen = file_processing(file_path)
 
@@ -75,8 +68,6 @@ def llm_pipeline(file_path):
     )
 
     return answer_generation_chain, ques_list
-
-# Function to generate Word document from Q&A pairs
 def generate_word_doc(questions, answers):
     doc = WordDocument()
     doc.add_heading("Interview Questions & Answers", level=1)
@@ -84,29 +75,25 @@ def generate_word_doc(questions, answers):
     for idx, (q, a) in enumerate(zip(questions, answers), 1):
         doc.add_paragraph(f"Q{idx}: {q}", style='List Number')
         doc.add_paragraph(f"A{idx}: {a}")
-        doc.add_paragraph()  # blank line
-
-    # Save to in-memory bytes buffer
+        doc.add_paragraph()  
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     return buffer
-
-# Streamlit UI
-st.set_page_config(page_title="PDF Q&A Generator", page_icon="📄")
-st.title("📄 Interview Question & Answer Generator from PDF")
+st.set_page_config(page_title="PDF Q&A Generator")
+st.title("Interview Question & Answer Generator from PDF")
 
 uploaded_file = st.file_uploader("Upload a PDF file (Max 5 pages)", type=["pdf"])
 
 if uploaded_file is not None:
-    st.success(f"✅ Uploaded file: {uploaded_file.name}")
+    st.success(f"Uploaded file: {uploaded_file.name}")
 
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             tmp_file.write(uploaded_file.read())
             tmp_path = tmp_file.name
 
-        st.info("⏳ Processing your file...")
+        st.info("Processing your file...")
         qa_chain, questions = llm_pipeline(tmp_path)
 
         answers = []
@@ -114,18 +101,14 @@ if uploaded_file is not None:
             answer = qa_chain.run(q)
             answers.append(answer)
 
-        st.success("✅ Questions and answers generated!")
-
-        # Display Q&A interleaved
+        st.success("Questions and answers generated!")
         for idx, (q, a) in enumerate(zip(questions, answers), 1):
             st.markdown(f"**Q{idx}: {q}**")
-            st.markdown(f"🟢 **A:** {a}")
+            st.markdown(f" **A:** {a}")
             st.markdown("---")
-
-        # Generate and offer download of Word doc
         word_buffer = generate_word_doc(questions, answers)
         st.download_button(
-            label="📥 Download Q&A as Word Document",
+            label="Download Q&A as Word Document",
             data=word_buffer,
             file_name="interview_qa.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -134,7 +117,7 @@ if uploaded_file is not None:
         os.remove(tmp_path)
 
     except Exception as e:
-        st.error(f"❌ Error while processing PDF: {e}")
+        st.error(f"Error while processing PDF: {e}")
 
 else:
-    st.info("📥 Upload a PDF to begin.")
+    st.info("Upload a PDF to begin.")
